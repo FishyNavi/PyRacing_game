@@ -9,7 +9,9 @@ This game requires Python to be installed on your system. You will also need to 
     
 Open a terminal or command prompt and run the following command to install the required libraries:
 
-```python3 -m pip install pyglet```
+```bash
+python3 -m pip install pyglet
+```
 
 ### How to Play
 1. **Clone the repository**:
