@@ -4,9 +4,24 @@ import pyglet
 from menu import Menu
 
 def load_scores():
-    with open("score.txt",encoding="utf-8") as file:
-        content = file.read()
-        return literal_eval(content)
+    filepath = "score.txt"
+    default_scores = "[[], [], [], []]"
+
+    try:
+        if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+            with open(filepath, "r", encoding="utf-8") as file:
+                content = file.read()
+                return literal_eval(content)
+        else:
+            with open(filepath, "w", encoding="utf-8") as file:
+                file.write(default_scores)
+            return literal_eval(default_scores)
+
+    except (ValueError, SyntaxError) as e:
+        print(f"Error loading scores: {e}. Resetting score file.")
+        with open(filepath, "w", encoding="utf-8") as file:
+            file.write(default_scores)
+        return literal_eval(default_scores)
 
 
 def load_sprite_data(i):
@@ -317,7 +332,7 @@ class Popup:
             self.image=pyglet.sprite.Sprite(image,x/2-image.width*0.4/2,y/2-image.height*0.4/2)
             
             self.image.scale=0.4
-            print(w,h)
+
         self.label = pyglet.text.Label(
             "Probably not what you expected :3. Press e to close.",
             x=self.background.x + w // 2,
