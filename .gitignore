@@ -1,0 +1,9 @@
+/.venv
+/Sprite-0001.aseprite
+/Sprite-0002-0x0-16x16.aseprite
+/Sprite-0002.aseprite
+/Track.aseprite
+/decorations.aseprite
+/track_grayscale.aseprite
+
+src/__pycache__/*
