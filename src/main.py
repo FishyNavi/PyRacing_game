@@ -1,4 +1,5 @@
 import pyglet
+import os
 from pyglet.window import key, Window, FPSDisplay
 from pyglet.gl import GL_NEAREST
 from pyglet.image import Texture
@@ -109,8 +110,11 @@ class Game:
         self.score = load_scores()
 
         # Workaround for my audio driver issues. 
-        if isinstance(pyglet.media.get_audio_driver(), pyglet.media.drivers.pulse.adaptation.PulseAudioDriver):
-            self.car.update_pitch = None
+        if os.name == 'posix':
+            print("Nya")
+                
+            if isinstance(pyglet.media.get_audio_driver(), pyglet.media.drivers.pulse.adaptation.PulseAudioDriver):
+                self.car.update_pitch = None
             
         return True
 
