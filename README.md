@@ -12,14 +12,20 @@ Open a terminal or command prompt and run the following command to install the r
 ```python3 -m pip install pyglet```
 
 ### How to Play
-1. Clone the repository:
-Type ```git clone https://github.com/FishyNavi/PyRacing_game.git``` in your terminal and press enter.
+1. **Clone the repository**:
+Type following in your terminal and press enter.
+```bash
+git clone https://github.com/FishyNavi/PyRacing_game.git
+```
 
-2. Run the Game: 
+2. **Run the Game**: 
 Navigate to the project root directory in your terminal and execute the main script:
 
-```cd PyRacing_game```
-```python3 src/main.py```
+```bash
+cd PyRacing_game
 
-3. Have fun :3
+python3 src/main.py
+```
+
+# 3. **Have fun :3**
 
