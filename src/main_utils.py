@@ -1,5 +1,6 @@
 from ast import literal_eval
 import os
+import sys
 import pyglet
 from menu import Menu
 
@@ -151,9 +152,7 @@ def load_car(assets,i):
 
 def load_assets():
     """Dynamically load all PNG assets from the Assets folder."""
-    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
-    assets_path = os.path.join(root_dir, "Assets")
+    assets_path = os.path.join(getattr(sys, '_MEIPASS', os.getcwd()), "Assets")
     pyglet.resource.path = [assets_path]
     pyglet.resource.reindex()
 
@@ -213,21 +212,7 @@ def init_menu(game,menu_img):
 
     main_menu = Menu(game, button_configs, lap_labels=labels,menu_img=menu_img)
     return main_menu
-def add_score(self,total_time,lap_times,score,map_number):
-    try:
-        scores=score[map_number]
-    except:
-        scores=None
-    should_update=not scores or scores[0]<total_time
-    if should_update:
-        new_score=[total_time]
-        new_score.extend(lap_times)
-        score[map_number]=new_score
-        with open('score.txt', 'w') as f:
-            # Comment: writes score into file
-            f.write(str(score))
-            
-        # end overwrite file
+
 def get_button_configs():
     """Returns a dictionary of configurations for all buttons with distinct colors."""
 

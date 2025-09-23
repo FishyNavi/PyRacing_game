@@ -142,6 +142,20 @@ class Game:
         self.world.update(dx, dy, self.car)
         if car_dir:
             self.car.direction = car_dir
+    def add_score(self, total_time, lap_times):
+        """Add or update the score for the current map."""
+        map_number = self.main_menu.map_selected
+
+        while len(self.score) <= map_number:
+            self.score.append([])
+
+        existing_score = self.score[map_number]
+
+        if not existing_score or total_time < existing_score[0]:
+            self.score[map_number] = [total_time] + lap_times
+            with open("score.txt", "w", encoding="utf-8") as f:
+                f.write(str(self.score))
+
 
     def on_draw(self):
         """Draws all game objects."""

@@ -1,5 +1,6 @@
 import pyglet
 from functools import partial
+import sys
 
 class LabelWithBackground:
     def __init__(
@@ -313,7 +314,7 @@ class Menu:
         if bm.main_buttons[1]:
             bm.main_buttons[1].on_press = self.settings
         if bm.main_buttons[2]:
-            bm.main_buttons[2].on_press = exit
+            bm.main_buttons[2].on_press = self.exit_menu
         if bm.main_buttons[3]:
             bm.main_buttons[3].on_press = self.continue_game
 
@@ -422,7 +423,7 @@ class Menu:
         self.picking_map = True
         self.game.is_on_menu = True
     def exit_menu(self):
-        pyglet.event.EventDispatcher.post_event("on_close")
+        sys.exit()
     def settings(self):
         print("*settings opened*")
         self.game.settings=True

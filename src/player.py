@@ -1,10 +1,15 @@
 import math
 import os
+import sys
 import pyglet
 from pyglet.window import key
 from pyglet import shapes
 
 
+def asset_path(filename):
+    
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(root_dir, "Assets", filename)
 class Car:
     def __init__(self, car_sheet, window, power, friction, scale, batch):
         # Static parameters
@@ -79,13 +84,9 @@ class Car:
         ]
 
         # Load sounds
-        root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        engine_sound_path = os.path.join(root_dir, "Assets", "engine_loop.wav")
-        collision_sound_path = os.path.join(root_dir, "Assets", "collision.mp3")
-
-        self.collision = pyglet.media.load(collision_sound_path, streaming=False)
-        engine_sound = pyglet.media.load(engine_sound_path, streaming=False)
-
+        self.collision = pyglet.media.load(asset_path("collision.mp3"), streaming=False)
+        engine_sound = pyglet.media.load(asset_path("engine_loop.wav"), streaming=False)
+        
         self.engine_player = pyglet.media.Player()
         self.engine_player.queue(engine_sound)
         self.engine_player.loop = True
