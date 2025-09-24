@@ -41,7 +41,7 @@ Drift, bump into wals and race! Built with [pyglet](https://pyglet.readthedocs.i
 
 - **WASD / Arrow keys** — Drive
 - **P** — Pause
-- **R** — Restart race (in pause menu)
+- **R** — Restart race (while in game) 
 - **F** — Freecam mode
 - **E** — Close "settings" :3
 
