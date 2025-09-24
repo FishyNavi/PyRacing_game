@@ -317,6 +317,8 @@ class Menu:
             bm.main_buttons[2].on_press = self.exit_menu
         if bm.main_buttons[3]:
             bm.main_buttons[3].on_press = self.continue_game
+        if bm.main_buttons[4]:
+            bm.main_buttons[4].on_press = self.restart_race
 
 
         for i, button in enumerate(bm.map_pick_buttons):
@@ -351,7 +353,7 @@ class Menu:
         if bm.main_buttons[2]: bm.main_buttons[2].enabled = is_main_menu_active or is_paused_active or is_game_finished
         if bm.main_buttons[3]: bm.main_buttons[3].enabled = is_paused_active
         if bm.main_buttons[4]: bm.main_buttons[4].enabled = is_game_finished
-
+        
         for button in bm.map_pick_buttons:
             if button: button.enabled = self.picking_map
         for button in bm.car_pick_buttons:
@@ -423,7 +425,19 @@ class Menu:
         self.picking_map = True
         self.game.is_on_menu = True
     def exit_menu(self):
-        sys.exit()
+        if self.game.is_race_finished: # Now it exits to main menu after game :3
+            self.game.is_on_menu = True
+            self.game.paused = True
+            self.picking_map = False
+            self.picking_car = False
+        else:
+            sys.exit()
+    def restart_race(self):
+        if not self.game.is_on_menu and not self.game.is_race_finished:
+            if hasattr(self.game, "init_game"):
+                self.game.init_game()
+                self.game.paused = False
+                self.game.is_on_menu = False
     def settings(self):
         print("*settings opened*")
         self.game.settings=True

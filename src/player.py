@@ -5,11 +5,23 @@ import pyglet
 from pyglet.window import key
 from pyglet import shapes
 
-
 def asset_path(filename):
-    
     root_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(root_dir, "Assets", filename)
+
+def load_sound_variant(filename):
+    """Tries to load sound files with and without an '_internal' suffix."""
+    base, ext = os.path.splitext(filename)
+    internal_filename = f"{base}_internal{ext}"
+    try:
+        return pyglet.media.load(asset_path(internal_filename), streaming=False)
+    except Exception:
+        try:
+            return pyglet.media.load(asset_path(filename), streaming=False)
+        except Exception as e:
+            print(f"Warning: Could not load sound '{filename}' or '{internal_filename}': {e}")
+            return None
+
 class Car:
     def __init__(self, car_sheet, window, power, friction, scale, batch):
         # Static parameters
@@ -45,6 +57,9 @@ class Car:
         self.y = window.height // 2
         self.hitbox_x = window.width // 2
         self.hitbox_y = window.height // 2
+        self.collision_correction_x = 0.0
+        self.collision_correction_y = 0.0
+        self.wall_stuck_time = 0.0
         self.textures = pyglet.image.ImageGrid(car_sheet, rows=1, columns=8)
         self.textures.anchor_x = self.textures.width // 2
         self.textures.anchor_y = self.textures.height // 2
@@ -83,12 +98,13 @@ class Car:
             shapes.Circle(0, 0, radius=3, color=(0, 255, 0)) for _ in range(4)
         ]
 
-        # Load sounds
-        self.collision = pyglet.media.load(asset_path("collision.mp3"), streaming=False)
-        engine_sound = pyglet.media.load(asset_path("engine_loop.wav"), streaming=False)
-        
+        # Load sounds (use robust sound loading)
+        self.collision = load_sound_variant("collision.mp3")
+        engine_sound = load_sound_variant("engine_loop.wav")
+
         self.engine_player = pyglet.media.Player()
-        self.engine_player.queue(engine_sound)
+        if engine_sound:
+            self.engine_player.queue(engine_sound)
         self.engine_player.loop = True
         self.last_pitch = 1.0
 
@@ -190,7 +206,7 @@ class Car:
     def update_pitch_default(self):
         speed_ratio = abs(self.speed / self.speed_cap)
         target_pitch = 0.5 + round(speed_ratio / 0.01) * 0.01
-        if abs(target_pitch - self.last_pitch) > 0.01:  
+        if abs(target_pitch - self.last_pitch) > 0.01:
             self.engine_player.pitch = target_pitch
             self.last_pitch = target_pitch
 
@@ -271,6 +287,7 @@ class Car:
         return corner_states, future_states
 
     def update_hitbox_corners(self, track, dt):
+        # --- Unstuck logic ---
         corners, future_corners = self.get_hitbox_corners()
         back_left, front_left, front_right, back_right = 0, 1, 2, 3
         corner_states, future_states = self.update_corners_states(corners, future_corners, track)
@@ -279,10 +296,59 @@ class Car:
             corner_states = [3 if s == 4 else s for s in corner_states]
         
         collision_detected = any(s == 3 for s in corner_states) and corner_states != [3, 3, 3, 3]
+        inside_wall_indices = [i for i, state in enumerate(corner_states) if state == 3]
+        in_wall = collision_detected
 
-        if collision_detected:
+        if in_wall:
+            self.wall_stuck_time += dt
+        else:
+            self.wall_stuck_time = 0.0
+
+        if self.wall_stuck_time > 0.5: # Unstuck player cause they cant play or idk
             if self.collision_frames == 0 or (self.collision_frames % 20 == 0):
-                self.collision.play()
+                if self.collision:
+                    self.collision.play()
+            self.collision_frames += 1
+
+            correction_x, correction_y = 0.0, 0.0
+            for idx in inside_wall_indices:
+                corner_x, corner_y = corners[idx]
+                dx = corner_x - self.hitbox.x
+                dy = corner_y - self.hitbox.y
+                mag = math.hypot(dx, dy)
+                if mag == 0:
+                    continue
+                correction_x -= dx / mag
+                correction_y -= dy / mag
+
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
+
+            if inside_wall_indices:
+                correction_len = math.hypot(correction_x, correction_y)
+                if correction_len != 0:
+                    correction_x /= correction_len
+                    correction_y /= correction_len
+                    step_size = 18
+                    lerp_factor = min(1.0, dt * 12)
+                    target_cx = correction_x * step_size
+                    target_cy = correction_y * step_size
+                    self.collision_correction_x += (target_cx - self.collision_correction_x) * lerp_factor
+                    self.collision_correction_y += (target_cy - self.collision_correction_y) * lerp_factor
+
+            self.vel_x = 0
+            self.vel_y = 0
+            self.speed = 0
+            self.angular_velocity = 0
+
+            if abs(self.speed) > self.crash_collision_treshold:
+                self.crashed = True
+
+        elif collision_detected:
+            # --- Original logic (realistic bounce/spin/corner) ---
+            if self.collision_frames == 0 or (self.collision_frames % 20 == 0):
+                if self.collision:
+                    self.collision.play()
             self.collision_frames += 1
             self._update_cached_trig()
 
@@ -302,8 +368,15 @@ class Car:
             elif corner_states[back_left] == 3: self._handle_corner_collision(back_left, back_right, future_states, dt, 1, is_rear=True)
             elif corner_states[back_right] == 3: self._handle_corner_collision(back_right, back_left, future_states, dt, -1, is_rear=True)
 
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
 
-        # Check for start(value 1)
+        else:
+            self.collision_frames = 0
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
+
+        # --- Lap/checkpoint logic unchanged ---
         if any(state == 1 for state in corner_states):
             if not self.lap_started:
                 self.lap_started = True
@@ -324,7 +397,6 @@ class Car:
                 self.lap_started = False  
                 self.checkpoint_reached = False 
                 print("Lap finished!")
-
 
     def _handle_corner_collision(self, primary_corner, secondary_corner, future_states, dt, spin_direction, is_rear=False):
         impact_factor = abs(self.speed / self.speed_cap)
@@ -348,7 +420,7 @@ class Car:
         push_force_y = math.sin(push_angle_rad) * push_magnitude * dt
         self.vel_x += push_force_x
         self.vel_y += push_force_y
+
     def get_trail_pos(self):
         corners, _ = self.get_hitbox_corners()
         return [corners[0], corners[3]]
-

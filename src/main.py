@@ -1,5 +1,6 @@
 import pyglet
 import os
+import sys
 from pyglet.window import key, Window, FPSDisplay
 from pyglet.gl import GL_NEAREST
 from pyglet.image import Texture
@@ -17,10 +18,14 @@ class Game:
 
     def __init__(self):
         self.window = Window(1280, 720, caption="Track Demo")
-        self.settings_popup=Popup(1280,720,400,650,True)
-        menu_img=load_menu_img()
-        if not menu_img:
-            del menu_img
+        
+        self.menu_assets = load_assets(['neco', 'blohai'])
+        self.game_assets = {}
+
+        self.settings_popup=Popup(1280,720,400,650, self.menu_assets)
+        menu_img_sprite=load_menu_img(self.menu_assets)
+        if not menu_img_sprite:
+            del menu_img_sprite
             
         self.fps = FPSDisplay(self.window)
         self.keys = key.KeyStateHandler()
@@ -34,7 +39,7 @@ class Game:
 
         # Core Components
         self.batch = pyglet.graphics.Batch()
-        self.main_menu = init_menu(self,menu_img)
+        self.main_menu = init_menu(self, menu_img_sprite)
         self.input_handler = InputHandler(self, self.keys)
 
         # Game-specific objects (initialized later)
@@ -78,23 +83,52 @@ class Game:
         self.race_manager.update(dt)
 
         # Move the world based on the car's movement
-        car_dx, car_dy = self.car.smoothx, self.car.smoothy
+        car_dx = self.car.smoothx + self.car.collision_correction_x
+        car_dy = self.car.smoothy + self.car.collision_correction_y
         self.world.update(car_dx, car_dy, self.car)
 
     def init_game(self):
         """Initializes and sets up all objects for a new game session."""
+        if self.car and self.car.engine_player:
+            self.car.engine_player.pause()
+            self.car.engine_player.delete()
+
+        self.batch = pyglet.graphics.Batch() 
+        self.world = None
+        self.car = None
+        self.race_manager = None
+
         map_index = self.main_menu.map_selected
         car_index = self.main_menu.car_selected
 
-        assets = load_assets()
-        map_data = load_map(assets, map_index)
-        car_data = load_car(assets, car_index)
+        # Reworked :D
+        all_car_data = load_sprite_data(0) 
+        car_name = list(all_car_data)[car_index]
+        all_map_data = load_sprite_data(1)
+        map_name = list(all_map_data)[map_index]
+
+        required_assets = [
+            f"{car_name}_texture",
+            f"{map_name}_map",
+            f"{map_name}_map_grayscale",
+            "tree"
+        ]
+        
+        decorations_key = f"{map_name}_map_decorations"
+        assets_path = os.path.join(getattr(sys, '_MEIPASS', os.getcwd()), "Assets")
+        if os.path.exists(os.path.join(assets_path, f"{decorations_key}.png")):
+            required_assets.append(decorations_key)
+
+        self.game_assets = load_assets(required_assets)
+
+        map_data = load_map(self.game_assets, map_index)
+        car_data = load_car(self.game_assets, car_index)
         
         if not map_data or not car_data:
             return False
 
         # Create the core game components
-        self.world = GameWorld(self.window, self.batch, map_data, assets)
+        self.world = GameWorld(self.window, self.batch, map_data, self.game_assets)
         self.car = Car(
             car_data["texture"], self.window, car_data["power"],
             car_data["friction"], car_data["scale"], batch=self.batch
@@ -108,7 +142,7 @@ class Game:
             self.race_manager.spawn_point[0], self.race_manager.spawn_point[1], -180
         )
         self.score = load_scores()
-
+ 
         # Workaround for my audio driver issues. 
         if os.name == 'posix':
             print("Nya")
@@ -142,6 +176,7 @@ class Game:
         self.world.update(dx, dy, self.car)
         if car_dir:
             self.car.direction = car_dir
+            
     def add_score(self, total_time, lap_times):
         """Add or update the score for the current map."""
         map_number = self.main_menu.map_selected
@@ -238,3 +273,4 @@ if __name__ == "__main__":
 #    finally:
 #        print("exit")
 #        game.cleanup()
+
