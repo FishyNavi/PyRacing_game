@@ -48,7 +48,7 @@ Drift, bump into wals and race! Built with [pyglet](https://pyglet.readthedocs.i
 ---
 
 ## How to Play
-
+This game uses OpenGL and the minimum requireed version is 3.3. The game will crash if you don't have installed on your system. 
 ### **Download**  
 - Get the latest **bundled release** for Windows or Linux from [Releases](https://github.com/FishyNavi/PyRacing_game/releases)—no Python needed, just run it!
 
