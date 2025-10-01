@@ -174,14 +174,7 @@ def get_button_configs():
                 "height": 40,
                 "colors": blue_scheme,
             },
-            {
-                "text": "Restart",
-                "x": 20,
-                "y": 160,
-                "width": 200,
-                "height": 40,
-                "colors": blue_scheme,
-            },
+
         ],
         "maps": [
             {
@@ -203,7 +196,7 @@ def get_button_configs():
                 "height": 40,
                 "colors": green_scheme,
             }
-            for i in range(4)
+            for i in range(2)
         ],
     }
     return configs

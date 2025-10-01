@@ -296,7 +296,7 @@ class Menu:
                 )
                 self.labels.append(label)
 
-        # ### CHANGED ###: Initialize the best time label
+
         self.best_time_label = LabelWithBackground(
             text="Best Time: N/A",
             x=220,
@@ -317,8 +317,6 @@ class Menu:
             bm.main_buttons[2].on_press = self.exit_menu
         if bm.main_buttons[3]:
             bm.main_buttons[3].on_press = self.continue_game
-        if bm.main_buttons[4]:
-            bm.main_buttons[4].on_press = self.restart_race
 
 
         for i, button in enumerate(bm.map_pick_buttons):
@@ -352,8 +350,7 @@ class Menu:
         if bm.main_buttons[1]: bm.main_buttons[1].enabled = is_main_menu_active or is_paused_active
         if bm.main_buttons[2]: bm.main_buttons[2].enabled = is_main_menu_active or is_paused_active or is_game_finished
         if bm.main_buttons[3]: bm.main_buttons[3].enabled = is_paused_active
-        if bm.main_buttons[4]: bm.main_buttons[4].enabled = is_game_finished
-        
+
         for button in bm.map_pick_buttons:
             if button: button.enabled = self.picking_map
         for button in bm.car_pick_buttons:
@@ -430,6 +427,7 @@ class Menu:
             self.game.paused = True
             self.picking_map = False
             self.picking_car = False
+            self.game.is_race_finished = False
         else:
             sys.exit()
     def restart_race(self):

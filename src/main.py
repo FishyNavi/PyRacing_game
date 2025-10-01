@@ -78,7 +78,7 @@ class Game:
             self.car.engine_player.play()
 
         # Update all game logic
-        self.car.update_hitbox_corners(self.world.track, dt)
+        self.car.collision_handler.update(dt)
         self.car.update(dt, self.keys)
         self.race_manager.update(dt)
 
@@ -134,6 +134,7 @@ class Game:
             car_data["friction"], car_data["scale"], batch=self.batch
         )
         self.race_manager = RaceManager(self, self.car)
+        self.car.set_track(self.world.track)
         self.race_manager.start_race(map_data["total_laps"], map_data["spawn_point"])
         
         # Final setup
@@ -146,8 +147,10 @@ class Game:
         # Workaround for my audio driver issues. 
         if os.name == 'posix':
             print("Nya")
-                
-            if isinstance(pyglet.media.get_audio_driver(), pyglet.media.drivers.pulse.adaptation.PulseAudioDriver):
+            try:
+                if isinstance(pyglet.media.get_audio_driver(), pyglet.media.drivers.pulse.adaptation.PulseAudioDriver):
+                    self.car.update_pitch = None
+            except:
                 self.car.update_pitch = None
             
         return True
@@ -257,6 +260,10 @@ def current_lap(self):
 @property
 def is_race_finished(self):
     return self.race_manager.is_race_finished if self.race_manager else False
+@is_race_finished.setter
+def is_race_finished(self,var):
+    if self.race_manager:
+        self.race_manager.is_race_finished=var
 
 
 Game.laps = laps
@@ -273,4 +280,3 @@ if __name__ == "__main__":
 #    finally:
 #        print("exit")
 #        game.cleanup()
-
