@@ -67,6 +67,12 @@ This game uses OpenGL and the minimum requireed version is 3.3. The game will cr
 
 ---
 
+## Gameplay notes
+
+The game might look hard at first. It is. If you have problems with controlling the car, play on the 1st or 4th maps. You can practice steering there. Maps 3 and 4 are really hard, not only because of their difficulty, but also because of the time required to play them. Try playing for a while and youll probably get used :>
+
+---
+
 ## About the Code
 
 - `main.py` — Game loop, input, menus, and track loading
