@@ -78,7 +78,7 @@ class Game:
             self.car.engine_player.play()
 
         # Update all game logic
-        self.car.collision_handler.update(dt)
+        self.car.update_hitbox_corners(self.world.track, dt)
         self.car.update(dt, self.keys)
         self.race_manager.update(dt)
 
@@ -134,7 +134,6 @@ class Game:
             car_data["friction"], car_data["scale"], batch=self.batch
         )
         self.race_manager = RaceManager(self, self.car)
-        self.car.set_track(self.world.track)
         self.race_manager.start_race(map_data["total_laps"], map_data["spawn_point"])
         
         # Final setup

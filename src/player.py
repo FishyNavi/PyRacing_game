@@ -5,8 +5,6 @@ import pyglet
 from pyglet.window import key
 from pyglet import shapes
 
-from collision import CollisionHandler
-
 def asset_path(filename):
     root_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(root_dir, "Assets", filename)
@@ -40,7 +38,7 @@ class Car:
         self.drifting = False
         self.last_turn = 0
         self.collision_frames = 0
-        self.crash_collision_treshold = 700
+        self.crash_collision_treshold = 500
         self.crashed = False
         self.is_freecam = False
         self.last_pos = 200, 200
@@ -61,8 +59,7 @@ class Car:
         self.hitbox_y = window.height // 2
         self.collision_correction_x = 0.0
         self.collision_correction_y = 0.0
-        # self.wall_stuck_time = 0.0
-        self.collision_handler = None
+        self.wall_stuck_time = 0.0
         self.textures = pyglet.image.ImageGrid(car_sheet, rows=1, columns=8)
         self.textures.anchor_x = self.textures.width // 2
         self.textures.anchor_y = self.textures.height // 2
@@ -114,9 +111,6 @@ class Car:
         self.collision_player = pyglet.media.Player()
         self.collision_player.loop = False
         self.update_pitch = self.update_pitch_default
-
-    def set_track(self, track):
-        self.collision_handler = CollisionHandler(self, track)
 
     def _update_cached_trig(self):
         """Cache trigonometric calculations for performance"""
@@ -291,6 +285,141 @@ class Car:
             else: future_states[idx] = 3
 
         return corner_states, future_states
+
+    def update_hitbox_corners(self, track, dt):
+        # --- Unstuck logic ---
+        corners, future_corners = self.get_hitbox_corners()
+        back_left, front_left, front_right, back_right = 0, 1, 2, 3
+        corner_states, future_states = self.update_corners_states(corners, future_corners, track)
+        
+        if 2 not in corner_states:
+            corner_states = [3 if s == 4 else s for s in corner_states]
+        
+        collision_detected = any(s == 3 for s in corner_states) and corner_states != [3, 3, 3, 3]
+        inside_wall_indices = [i for i, state in enumerate(corner_states) if state == 3]
+        in_wall = collision_detected
+
+        if in_wall:
+            self.wall_stuck_time += dt
+        else:
+            self.wall_stuck_time = 0.0
+
+        if self.wall_stuck_time > 0.5: # Unstuck player cause they cant play or idk
+            if self.collision_frames == 0 or (self.collision_frames % 20 == 0):
+                if self.collision:
+                    self.collision.play()
+            self.collision_frames += 1
+
+            correction_x, correction_y = 0.0, 0.0
+            for idx in inside_wall_indices:
+                corner_x, corner_y = corners[idx]
+                dx = corner_x - self.hitbox.x
+                dy = corner_y - self.hitbox.y
+                mag = math.hypot(dx, dy)
+                if mag == 0:
+                    continue
+                correction_x -= dx / mag
+                correction_y -= dy / mag
+
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
+
+            if inside_wall_indices:
+                correction_len = math.hypot(correction_x, correction_y)
+                if correction_len != 0:
+                    correction_x /= correction_len
+                    correction_y /= correction_len
+                    step_size = 18
+                    lerp_factor = min(1.0, dt * 12)
+                    target_cx = correction_x * step_size
+                    target_cy = correction_y * step_size
+                    self.collision_correction_x += (target_cx - self.collision_correction_x) * lerp_factor
+                    self.collision_correction_y += (target_cy - self.collision_correction_y) * lerp_factor
+
+            self.vel_x = 0
+            self.vel_y = 0
+            self.speed = 0
+            self.angular_velocity = 0
+
+            if abs(self.speed) > self.crash_collision_treshold:
+                self.crashed = True
+
+        elif collision_detected:
+            # --- Original logic (realistic bounce/spin/corner) ---
+            if self.collision_frames == 0 or (self.collision_frames % 20 == 0):
+                if self.collision:
+                    self.collision.play()
+            self.collision_frames += 1
+            self._update_cached_trig()
+
+            front_collision = corner_states[front_left] == 3 and corner_states[front_right] == 3
+            rear_collision = corner_states[back_left] == 3 and corner_states[back_right] == 3
+
+            if front_collision:
+                self.speed = math.copysign(max(abs(self.speed) / 10, 30), -1)
+                self.vel_x = self.speed * self._cached_cos * dt
+                self.vel_y = self.speed * self._cached_sin * dt
+            elif rear_collision:
+                self.speed = math.copysign(max(abs(self.speed) / 10, 30), 1)
+                self.vel_x = self.speed * self._cached_cos * dt
+                self.vel_y = self.speed * self._cached_sin * dt
+            elif corner_states[front_left] == 3: self._handle_corner_collision(front_left, front_right, future_states, dt, -1)
+            elif corner_states[front_right] == 3: self._handle_corner_collision(front_right, front_left, future_states, dt, 1)
+            elif corner_states[back_left] == 3: self._handle_corner_collision(back_left, back_right, future_states, dt, 1, is_rear=True)
+            elif corner_states[back_right] == 3: self._handle_corner_collision(back_right, back_left, future_states, dt, -1, is_rear=True)
+
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
+
+        else:
+            self.collision_frames = 0
+            self.collision_correction_x = 0.0
+            self.collision_correction_y = 0.0
+
+        # --- Lap/checkpoint logic unchanged ---
+        if any(state == 1 for state in corner_states):
+            if not self.lap_started:
+                self.lap_started = True
+                self.checkpoint_reached = False 
+                self.timer = 0
+                print("Lap timer started!")
+
+        # Check for checkpoint (value 5)
+        elif any(state == 5 for state in corner_states):
+            if self.lap_started:  
+                self.checkpoint_reached = True
+                print("Checkpoint reached!")
+
+        # Check for finish (value 2)
+        elif any(state == 2 for state in corner_states):
+            if self.lap_started and self.checkpoint_reached and self.timer > 1:
+                self.is_lap_finished = True
+                self.lap_started = False  
+                self.checkpoint_reached = False 
+                print("Lap finished!")
+
+    def _handle_corner_collision(self, primary_corner, secondary_corner, future_states, dt, spin_direction, is_rear=False):
+        impact_factor = abs(self.speed / self.speed_cap)
+        spin_impulse = spin_direction * self.collision_spin_force * impact_factor
+        if is_rear:
+            push_angle_offset = 45 * -spin_direction
+        else:
+            push_angle_offset = 160 * spin_direction
+
+        push_angle_rad = math.radians(self.direction + push_angle_offset)
+
+        if future_states[primary_corner] == 3 and future_states[secondary_corner] == 3:
+            self.angular_velocity = spin_impulse * impact_factor * 45 * -1
+            push_magnitude = self.collision_push_force * impact_factor
+            if self.crashed: push_magnitude /= 20
+            if impact_factor > 0.7: self.crashed = True
+        else:
+            self.angular_velocity += spin_impulse
+            push_magnitude = self.collision_push_force * impact_factor
+        push_force_x = math.cos(push_angle_rad) * push_magnitude * dt
+        push_force_y = math.sin(push_angle_rad) * push_magnitude * dt
+        self.vel_x += push_force_x
+        self.vel_y += push_force_y
 
     def get_trail_pos(self):
         corners, _ = self.get_hitbox_corners()

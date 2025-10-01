@@ -11,13 +11,9 @@ class CollisionHandler:
 
         corners, future_corners = car.get_hitbox_corners()
         corner_states, future_states = car.update_corners_states(corners, future_corners, track)
-        
-        if not car.checkpoint_reached:
-             corner_states = [s if s != 2 else 3 for s in corner_states]
+ 
 
-        if not car.lap_started:
-             corner_states = [s if s != 5 else 3 for s in corner_states]
-
+        print("Corner States:", corner_states)
         collision_detected = any(s == 3 for s in corner_states)
         
         correction_x, correction_y = 0.0, 0.0
